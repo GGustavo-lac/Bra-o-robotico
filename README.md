@@ -4,7 +4,7 @@ Aplicação web em **PHP + MySQL** que acompanha o nosso dispositivo IoT da Feir
 
 > O site é informativo: ele **não controla** o braço.
 
-> **Equipe:** _(preencher: nomes dos integrantes)_ · **Turma/Curso:** _(preencher)_ · **Vídeo de apresentação:** _(colar o link do YouTube)_
+> **Equipe:** _(Gustavo Lacerda, Gustavo Ferroni, Lucas Braga, Daniel Achcar)_ · **Turma/Curso:** _(2 DS AMS)_ · **Vídeo de apresentação:** _(colar o link do YouTube)_
 
 ---
 
