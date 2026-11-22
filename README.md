@@ -118,18 +118,8 @@ php -S localhost:8000
 Acesse **http://localhost:8000**.
 No XAMPP: copie a pasta para `htdocs/` e abra `http://localhost/braco-robotico-feira/public/`.
 
-## 8. Prints do sistema
 
-> 📸 **Trocar pelos prints reais** (salvar em `docs/img/` com estes nomes).
 
-| Início | Como funciona |
-|---|---|
-| ![Início](docs/img/print-inicio.png) | ![Como funciona](docs/img/print-como-funciona.png) |
-
-| Componentes | Visitantes | Dúvidas |
-|---|---|---|
-| ![Componentes](docs/img/print-componentes.png) | ![Visitantes](docs/img/print-visitantes.png) | ![Dúvidas](docs/img/print-duvidas.png) |
-
-## 9. Tecnologias
+## 8. Tecnologias
 
 PHP 8 · PDO · MySQL/MariaDB · HTML5/CSS3 · Arduino (Servo) no dispositivo · Git/GitHub
