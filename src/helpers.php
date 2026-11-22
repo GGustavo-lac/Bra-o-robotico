@@ -1,83 +1,127 @@
 <?php
-/** Funções auxiliares de apresentação e segurança. */
+declare(strict_types=1);
 
-/** Escapa texto para HTML (proteção contra XSS). */
-function e(?string $texto): string
+function e(?string $value): string
 {
-    return htmlspecialchars($texto ?? '', ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-/** Redireciona e encerra (padrão Post/Redirect/Get). */
 function redirecionar(string $url): never
 {
-    header("Location: $url");
+    header('Location: ' . $url, true, 303);
     exit;
 }
 
-/** Guarda uma mensagem para ser exibida na próxima página. */
 function flash(string $tipo, string $mensagem): void
 {
     $_SESSION['flash'] = ['tipo' => $tipo, 'mensagem' => $mensagem];
 }
 
-/** Token CSRF: impede que outro site envie formulários em nome do usuário. */
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
-        $_SESSION['csrf'] = bin2hex(random_bytes(16));
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
     }
-    return $_SESSION['csrf'];
+    return (string) $_SESSION['csrf'];
 }
 
 function csrf_campo(): string
 {
-    return '<input type="hidden" name="csrf" value="' . csrf_token() . '">';
+    return '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">';
 }
 
 function csrf_validar(): void
 {
-    $esperado = $_SESSION['csrf'] ?? '';
-    // Token vazio nunca é válido (senão '' == '' passaria sem sessão)
-    if ($esperado === '' || !hash_equals($esperado, (string) ($_POST['csrf'] ?? ''))) {
+    $esperado = (string) ($_SESSION['csrf'] ?? '');
+    $recebido = (string) ($_POST['csrf'] ?? '');
+    if ($esperado === '' || $recebido === '' || !hash_equals($esperado, $recebido)) {
         http_response_code(419);
-        exit('Sessão expirada. Volte e tente novamente.');
+        exit('Sua sessão expirou. Atualize a página e tente novamente.');
     }
 }
 
-/** Cabeçalho comum das páginas. $ativo marca o item do menu. */
-function cabecalho(string $titulo, string $ativo = ''): void
+function exigir_admin(): void
+{
+    header('Cache-Control: no-store');
+    if (empty($_SESSION['admin_autenticado'])) {
+        flash('erro', 'Entre na área administrativa para continuar.');
+        redirecionar('login.php');
+    }
+}
+
+function mostrar_flash(): void
+{
+    if (empty($_SESSION['flash'])) {
+        return;
+    }
+    $f = $_SESSION['flash'];
+    unset($_SESSION['flash']);
+    $tipo = in_array($f['tipo'] ?? '', ['ok', 'erro'], true) ? $f['tipo'] : 'ok';
+    echo '<div class="alert alert-' . e($tipo) . '" role="status">' . e($f['mensagem'] ?? '') . '</div>';
+}
+
+function cabecalho(string $titulo, string $ativo = '', bool $admin = false, string $base = ''): void
 {
     $itens = [
-        'inicio'       => ['index.php',        'Início'],
-        'como'         => ['como-funciona.php', 'Como funciona'],
-        'componentes'  => ['componentes.php',  'Componentes'],
-        'visitantes'   => ['visitantes.php',   'Visitantes'],
-        'duvidas'      => ['duvidas.php',      'Dúvidas'],
+        'inicio' => ['index.php', 'Visão geral'],
+        'como' => ['como-funciona.php', 'Funcionamento'],
+        'componentes' => ['componentes.php', 'Componentes'],
+        'duvidas' => ['duvidas.php', 'Perguntas'],
     ];
-    echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">';
+
+    echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<title>' . e($titulo) . ' · Braço Robótico IoT</title>';
-    echo '<link rel="stylesheet" href="css/style.css"></head><body>';
-    echo '<header class="topo"><a class="marca" href="index.php">🦾 Braço Robótico IoT</a><nav>';
-    foreach ($itens as $chave => [$url, $rotulo]) {
-        $classe = $chave === $ativo ? ' class="ativo"' : '';
-        echo "<a href=\"$url\"$classe>$rotulo</a>";
+    echo '<meta name="theme-color" content="#111a23">';
+    echo '<meta name="description" content="Documentação do protótipo de braço robótico com Arduino Uno, quatro potenciômetros e quatro servomotores.">';
+    echo '<meta name="color-scheme" content="light">';
+    echo '<title>' . e($titulo) . ' · Braço Robótico</title>';
+    $basePath = $admin ? '../' : $base;
+    echo '<link rel="stylesheet" href="' . e($basePath) . 'css/style.css?v=3">';
+    echo '</head><body>';
+    echo '<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>';
+    echo '<header class="site-header"><div class="header-inner">';
+    echo '<a class="brand" href="' . e($basePath . 'index.php') . '" aria-label="Braço Robótico — página inicial">';
+    echo '<span class="brand-mark" aria-hidden="true">BR.</span><span>BRAÇO<span class="brand-light">/</span>ROBÓTICO</span></a>';
+    echo '<nav class="main-nav" aria-label="Navegação principal">';
+    if ($admin) {
+        $adminItens = ['painel' => ['index.php', 'Painel'], 'perguntas' => ['perguntas.php', 'Perguntas'], 'componentes' => ['componentes.php', 'Catálogo']];
+        foreach ($adminItens as $key => [$url, $label]) {
+            echo '<a href="' . e($url) . '" class="' . ($ativo === $key ? 'is-active' : '') . '">' . e($label) . '</a>';
+        }
+        echo '<form method="post" action="logout.php" class="nav-form">' . csrf_campo() . '<button class="nav-link" type="submit">Sair</button></form>';
+    } else {
+        foreach ($itens as $key => [$url, $label]) {
+            echo '<a href="' . e($basePath . $url) . '" class="' . ($ativo === $key ? 'is-active' : '') . '">' . e($label) . '</a>';
+        }
+        echo '<a class="nav-admin" href="' . e($basePath . 'admin/login.php') . '">Área da equipe ↗</a>';
     }
-    echo '</nav></header><main>';
-    if (!empty($_SESSION['flash'])) {
-        $f = $_SESSION['flash'];
-        unset($_SESSION['flash']);
-        echo '<div class="aviso ' . e($f['tipo']) . '">' . e($f['mensagem']) . '</div>';
+    echo '</nav><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav">Menu</button>';
+    echo '</div><div id="mobile-nav" class="mobile-nav" hidden>';
+    if ($admin) {
+        echo '<a href="index.php">Painel</a><a href="perguntas.php">Perguntas</a><a href="componentes.php">Catálogo</a>';
+        echo '<form method="post" action="logout.php">' . csrf_campo() . '<button type="submit">Sair</button></form>';
+    } else {
+        foreach ($itens as [$url, $label]) {
+            echo '<a href="' . e($basePath . $url) . '">' . e($label) . '</a>';
+        }
+        echo '<a href="' . e($basePath . 'admin/login.php') . '">Área da equipe</a>';
     }
+    echo '</div></header><main id="conteudo" class="page-shell">';
+    mostrar_flash();
 }
 
-function rodape(): void
+function rodape(bool $admin = false, string $base = ''): void
 {
-    echo '</main><footer>Feira Tecnológica · Projeto em grupo · PHP + MySQL</footer></body></html>';
+    echo '</main><footer class="site-footer"><div class="footer-inner">';
+    echo '<span class="footer-brand">BRAÇO / ROBÓTICO</span>';
+    echo '<p>Protótipo didático · Arduino Uno · Feira tecnológica</p>';
+    echo '<span class="footer-note">Conteúdo informativo — não controla o hardware.</span>';
+    echo '</div></footer>';
+    $basePath = $admin ? '../' : $base;
+    echo '<script src="' . e($basePath) . 'js/site.js?v=3" defer></script></body></html>';
 }
 
-/** Conta caracteres (usa mbstring quando disponível, para acentos contarem como 1). */
 function tam(string $texto): int
 {
-    return function_exists('mb_strlen') ? mb_strlen($texto) : strlen($texto);
+    return function_exists('mb_strlen') ? mb_strlen($texto, 'UTF-8') : strlen($texto);
 }

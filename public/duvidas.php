@@ -1,129 +1,73 @@
 <?php
-/**
- * Página de DÚVIDAS — perguntas dos visitantes e respostas da equipe (CRUD completo).
- * Relaciona visitantes e componentes.
- */
 require __DIR__ . '/../src/bootstrap.php';
 
 use App\Services\ComponenteService;
-use App\Services\DuvidaService;
-use App\Services\VisitanteService;
+use App\Services\PerguntaService;
 
-$servico = new DuvidaService();
-$acao    = $_GET['acao'] ?? 'listar';
-$id      = (int) ($_GET['id'] ?? 0);
-$valores = ['visitante_id' => '', 'componente_id' => '', 'pergunta' => '', 'resposta' => ''];
-
+$perguntaService = new PerguntaService();
+$perguntaDigitada = '';
+$componenteSelecionado = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validar();
-    $idPost = (int) ($_POST['id'] ?? 0);
     try {
-        if (($_POST['acao'] ?? '') === 'salvar') {
-            if ($idPost) {
-                $servico->atualizar($idPost, $_POST);
-                flash('ok', 'Dúvida atualizada.');
-            } else {
-                $servico->criar($_POST);
-                flash('ok', 'Dúvida registrada.');
+        if (trim((string) ($_POST['website'] ?? '')) === '') {
+            $componenteRaw = trim((string) ($_POST['componente_id'] ?? ''));
+            $componenteId = $componenteRaw === '' ? null : filter_var($componenteRaw, FILTER_VALIDATE_INT);
+            if ($componenteRaw !== '' && !$componenteId) {
+                throw new InvalidArgumentException('Selecione um componente válido.');
             }
-        } elseif (($_POST['acao'] ?? '') === 'excluir') {
-            $servico->excluir($idPost);
-            flash('ok', 'Dúvida excluída.');
+            $perguntaService->criar((string) ($_POST['pergunta'] ?? ''), $componenteId ?: null);
         }
+        flash('ok', 'Pergunta enviada. A equipe vai revisar antes de publicar a resposta.');
         redirecionar('duvidas.php');
     } catch (InvalidArgumentException $e) {
         flash('erro', $e->getMessage());
-        $valores = array_merge($valores, $_POST);
-        $acao    = $idPost ? 'editar' : 'novo';
-        $id      = $idPost;
+        $perguntaDigitada = (string) ($_POST['pergunta'] ?? '');
+        $componenteSelecionado = (string) ($_POST['componente_id'] ?? '');
     }
-} elseif ($acao === 'editar') {
-    $valores = $servico->buscar($id) ?? redirecionar('duvidas.php');
 }
 
-cabecalho('Dúvidas', 'duvidas');
-
-if ($acao === 'novo' || $acao === 'editar') {
-    $visitantes  = (new VisitanteService())->listar();
-    $componentes = (new ComponenteService())->listar();
-    ?>
-    <h1><?= $acao === 'editar' ? 'Editar dúvida' : 'Nova dúvida' ?></h1>
-    <?php if (!$visitantes) { ?>
-        <div class="aviso erro">Cadastre pelo menos um visitante antes de registrar dúvidas.</div>
-    <?php } ?>
-    <form method="post" class="cartao form">
-        <?= csrf_campo() ?>
-        <input type="hidden" name="acao" value="salvar">
-        <input type="hidden" name="id" value="<?= $id ?>">
-        <label>Quem perguntou
-            <select name="visitante_id" required>
-                <option value="">Selecione…</option>
-                <?php foreach ($visitantes as $v) { ?>
-                    <option value="<?= $v['id'] ?>" <?= (int) $valores['visitante_id'] === (int) $v['id'] ? 'selected' : '' ?>>
-                        <?= e($v['nome']) ?>
-                    </option>
-                <?php } ?>
-            </select>
-        </label>
-        <label>Sobre qual componente? (opcional)
-            <select name="componente_id">
-                <option value="">Pergunta geral sobre o braço</option>
-                <?php foreach ($componentes as $c) { ?>
-                    <option value="<?= $c['id'] ?>" <?= (int) $valores['componente_id'] === (int) $c['id'] ? 'selected' : '' ?>>
-                        <?= e($c['nome']) ?>
-                    </option>
-                <?php } ?>
-            </select>
-        </label>
-        <label>Pergunta
-            <textarea name="pergunta" maxlength="500" rows="3" required><?= e($valores['pergunta']) ?></textarea>
-        </label>
-        <label>Resposta da equipe (opcional)
-            <textarea name="resposta" maxlength="500" rows="3"><?= e($valores['resposta']) ?></textarea>
-        </label>
-        <div class="acoes">
-            <button class="btn" type="submit">Salvar</button>
-            <a class="btn sec" href="duvidas.php">Cancelar</a>
-        </div>
+$componentes = (new ComponenteService())->listar();
+$perguntas = $perguntaService->publicadas();
+cabecalho('Perguntas', 'duvidas');
+?>
+<header class="page-heading">
+  <span class="eyebrow">04 / Perguntas e respostas</span>
+  <h1 class="page-title">Dúvidas sobre a construção.</h1>
+  <p>Consulte as respostas publicadas pela equipe ou envie uma pergunta sobre a eletrônica, a programação e a estrutura mecânica.</p>
+</header>
+<div class="qa-layout">
+  <section class="qa-list" aria-label="Perguntas respondidas">
+    <div class="component-top" style="padding:0 0 15px"><span class="category-label">Base de conhecimento</span><span class="caption"><?= count($perguntas) ?> respostas publicadas</span></div>
+    <?php if ($perguntas): ?>
+      <?php foreach ($perguntas as $item): ?>
+        <article class="question-card">
+          <span class="category-label"><?= e($item['componente'] ?: 'Projeto') ?></span>
+          <h2><?= e($item['pergunta']) ?></h2>
+          <span class="answer-label">Resposta da equipe</span>
+          <p><?= e($item['resposta']) ?></p>
+        </article>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <div class="empty-state">Ainda não há respostas publicadas. Envie sua dúvida pelo formulário; a equipe poderá revisá-la no painel.</div>
+    <?php endif; ?>
+  </section>
+  <aside class="qa-form-column">
+    <form class="form-card" method="post" action="duvidas.php">
+      <span class="eyebrow">Fale com a equipe</span>
+      <h2>Enviar uma pergunta</h2>
+      <p>As mensagens passam por revisão antes de aparecer publicamente.</p>
+      <?= csrf_campo() ?>
+      <div class="honeypot" aria-hidden="true"><label>Não preencha este campo<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <div class="field"><label for="componente_id">Assunto relacionado</label>
+        <select id="componente_id" name="componente_id"><option value="">Projeto em geral</option>
+          <?php foreach ($componentes as $c): ?><option value="<?= (int) $c['id'] ?>" <?= $componenteSelecionado === (string) $c['id'] ? 'selected' : '' ?>><?= e($c['nome']) ?></option><?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field"><label for="pergunta">Sua pergunta</label><textarea id="pergunta" name="pergunta" maxlength="500" minlength="8" required placeholder="Ex.: como o Arduino transforma a leitura do potenciômetro em movimento?"><?= e($perguntaDigitada) ?></textarea><small>De 8 a 500 caracteres.</small></div>
+      <button class="button button-dark" type="submit">Enviar para revisão <span aria-hidden="true">→</span></button>
+      <p class="form-note">Não pedimos nome ou e-mail. Evite incluir dados pessoais no texto.</p>
     </form>
-<?php } else { $lista = $servico->listar(); ?>
-    <div class="titulo-linha">
-        <h1>Dúvidas dos visitantes</h1>
-        <a class="btn" href="duvidas.php?acao=novo">+ Nova dúvida</a>
-    </div>
-    <div class="cartao">
-    <?php if (!$lista) { ?>
-        <p class="vazio">Nenhuma dúvida registrada ainda.</p>
-    <?php } else { ?>
-        <table>
-            <thead><tr><th>Visitante</th><th>Sobre</th><th>Pergunta e resposta</th><th></th></tr></thead>
-            <tbody>
-            <?php foreach ($lista as $d) { ?>
-                <tr>
-                    <td><?= e($d['visitante']) ?><br><small><?= e(date('d/m/Y H:i', strtotime($d['criado_em']))) ?></small></td>
-                    <td><?= e($d['componente'] ?? 'Geral') ?></td>
-                    <td>
-                        <strong><?= e($d['pergunta']) ?></strong><br>
-                        <?php if ($d['resposta']) { ?>
-                            <span class="resp"><?= e($d['resposta']) ?></span>
-                        <?php } else { ?>
-                            <span class="selo">Sem resposta</span>
-                        <?php } ?>
-                    </td>
-                    <td class="linha-acoes">
-                        <a class="btn peq sec" href="duvidas.php?acao=editar&id=<?= $d['id'] ?>">Editar</a>
-                        <form method="post" onsubmit="return confirm('Excluir esta dúvida?')">
-                            <?= csrf_campo() ?>
-                            <input type="hidden" name="acao" value="excluir">
-                            <input type="hidden" name="id" value="<?= $d['id'] ?>">
-                            <button class="btn peq perigo" type="submit">Excluir</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php } ?>
-            </tbody>
-        </table>
-    <?php } ?>
-    </div>
-<?php }
-rodape();
+  </aside>
+</div>
+<?php rodape(); ?>

@@ -1,62 +1,39 @@
 <?php
-/**
- * API REST (JSON) do catálogo de componentes — mesma regra de negócio do site (ComponenteService).
- *
- *   GET    /api/componentes.php          → lista todos
- *   GET    /api/componentes.php?id=1     → um componente
- *   POST   /api/componentes.php          → cria   (corpo JSON)
- *   PUT    /api/componentes.php?id=1     → atualiza (corpo JSON)
- *   DELETE /api/componentes.php?id=1     → exclui
- */
 require __DIR__ . '/../../src/bootstrap.php';
 
 use App\Services\ComponenteService;
 
 header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('Cache-Control: public, max-age=60');
 
-/** Envia a resposta JSON com o código HTTP e encerra. */
-function responder(int $codigo, mixed $corpo = null): never
+function responder_json(int $status, mixed $body = null): never
 {
-    http_response_code($codigo);
-    if ($corpo !== null) {
-        echo json_encode($corpo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    http_response_code($status);
+    if ($body !== null) {
+        echo json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
     exit;
 }
 
-$servico = new ComponenteService();
-$metodo  = $_SERVER['REQUEST_METHOD'];
-$id      = (int) ($_GET['id'] ?? 0);
-$corpo   = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    header('Allow: GET');
+    responder_json(405, ['erro' => 'A API pública permite apenas consulta (GET).']);
+}
 
 try {
-    switch ($metodo) {
-        case 'GET':
-            if ($id) {
-                responder(200, $servico->buscar($id) ?? responder(404, ['erro' => 'Componente não encontrado']));
-            }
-            responder(200, $servico->listar());
-
-        case 'POST':
-            responder(201, $servico->buscar($servico->criar($corpo)));
-
-        case 'PUT':
-            if (!$id || !$servico->buscar($id)) {
-                responder(404, ['erro' => 'Componente não encontrado']);
-            }
-            $servico->atualizar($id, $corpo);
-            responder(200, $servico->buscar($id));
-
-        case 'DELETE':
-            if (!$id || !$servico->buscar($id)) {
-                responder(404, ['erro' => 'Componente não encontrado']);
-            }
-            $servico->excluir($id);
-            responder(204);
-
-        default:
-            responder(405, ['erro' => 'Método não permitido']);
+    $service = new ComponenteService();
+    $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT);
+    if (isset($_GET['id']) && (!$id || $id < 1)) {
+        responder_json(400, ['erro' => 'Parâmetro id inválido.']);
     }
-} catch (InvalidArgumentException $e) {
-    responder(422, ['erro' => $e->getMessage()]);   // erro de validação
+    if ($id) {
+        $item = $service->buscar((int) $id);
+        if (!$item) responder_json(404, ['erro' => 'Componente não encontrado.']);
+        responder_json(200, $item);
+    }
+    responder_json(200, $service->listar());
+} catch (Throwable $e) {
+    error_log('[API componentes] ' . $e->getMessage());
+    responder_json(503, ['erro' => 'Serviço temporariamente indisponível.']);
 }

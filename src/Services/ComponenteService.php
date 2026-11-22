@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Database;
@@ -6,11 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use PDOException;
 
-/**
- * Serviço de COMPONENTES — catálogo das peças que formam o braço robótico.
- * Concentra validação, regras de negócio e SQL (as páginas não escrevem SQL).
- */
-class ComponenteService
+final class ComponenteService
 {
     private PDO $db;
 
@@ -19,23 +17,20 @@ class ComponenteService
         $this->db = Database::conectar();
     }
 
-    /** Categorias disponíveis (alimenta o <select> do formulário). */
     public function categorias(): array
     {
         return $this->db->query('SELECT id, nome FROM categorias ORDER BY nome')->fetchAll();
     }
 
-    /** READ (lista) — JOIN traz o nome da categoria. */
     public function listar(): array
     {
-        $sql = 'SELECT c.*, g.nome AS categoria
-                  FROM componentes c
-                  JOIN categorias g ON g.id = c.categoria_id
-                 ORDER BY g.nome, c.nome';
-        return $this->db->query($sql)->fetchAll();
+        return $this->db->query(
+            'SELECT c.id, c.nome, c.descricao, c.quantidade, c.especificacao, g.nome AS categoria
+             FROM componentes c JOIN categorias g ON g.id = c.categoria_id
+             ORDER BY g.nome, c.nome'
+        )->fetchAll();
     }
 
-    /** READ (um registro) */
     public function buscar(int $id): ?array
     {
         $st = $this->db->prepare('SELECT * FROM componentes WHERE id = ?');
@@ -43,70 +38,81 @@ class ComponenteService
         return $st->fetch() ?: null;
     }
 
-    /** CREATE */
     public function criar(array $dados): int
     {
         $d = $this->validar($dados);
         try {
             $st = $this->db->prepare(
-                'INSERT INTO componentes (categoria_id, nome, descricao, quantidade) VALUES (?, ?, ?, ?)'
+                'INSERT INTO componentes (categoria_id, nome, descricao, quantidade, especificacao)
+                 VALUES (?, ?, ?, ?, ?)'
             );
-            $st->execute([$d['categoria_id'], $d['nome'], $d['descricao'], $d['quantidade']]);
+            $st->execute([$d['categoria_id'], $d['nome'], $d['descricao'], $d['quantidade'], $d['especificacao']]);
         } catch (PDOException $e) {
             $this->tratarDuplicidade($e);
         }
         return (int) $this->db->lastInsertId();
     }
 
-    /** UPDATE */
     public function atualizar(int $id, array $dados): void
     {
+        if (!$this->buscar($id)) {
+            throw new InvalidArgumentException('Esse componente não existe mais.');
+        }
         $d = $this->validar($dados);
         try {
             $st = $this->db->prepare(
-                'UPDATE componentes SET categoria_id = ?, nome = ?, descricao = ?, quantidade = ? WHERE id = ?'
+                'UPDATE componentes SET categoria_id = ?, nome = ?, descricao = ?, quantidade = ?, especificacao = ? WHERE id = ?'
             );
-            $st->execute([$d['categoria_id'], $d['nome'], $d['descricao'], $d['quantidade'], $id]);
+            $st->execute([$d['categoria_id'], $d['nome'], $d['descricao'], $d['quantidade'], $d['especificacao'], $id]);
         } catch (PDOException $e) {
             $this->tratarDuplicidade($e);
         }
     }
 
-    /** DELETE — as dúvidas ligadas ao componente continuam, como "gerais" (ON DELETE SET NULL). */
     public function excluir(int $id): void
     {
-        $this->db->prepare('DELETE FROM componentes WHERE id = ?')->execute([$id]);
+        $st = $this->db->prepare('DELETE FROM componentes WHERE id = ?');
+        $st->execute([$id]);
     }
 
     private function validar(array $dados): array
     {
-        $nome = trim($dados['nome'] ?? '');
-        $desc = trim($dados['descricao'] ?? '');
-        $cat  = filter_var($dados['categoria_id'] ?? null, FILTER_VALIDATE_INT);
-        $qtd  = filter_var($dados['quantidade'] ?? null, FILTER_VALIDATE_INT);
+        $nome = trim((string) ($dados['nome'] ?? ''));
+        $descricao = trim((string) ($dados['descricao'] ?? ''));
+        $categoria = filter_var($dados['categoria_id'] ?? null, FILTER_VALIDATE_INT);
+        $quantidade = filter_var($dados['quantidade'] ?? null, FILTER_VALIDATE_INT);
+        $especificacao = trim((string) ($dados['especificacao'] ?? ''));
 
         if ($nome === '' || tam($nome) > 80) {
-            throw new InvalidArgumentException('Informe o nome do componente (até 80 caracteres).');
+            throw new InvalidArgumentException('Informe um nome de até 80 caracteres.');
         }
-        if ($desc === '' || tam($desc) > 500) {
-            throw new InvalidArgumentException('Explique o que o componente faz (até 500 caracteres).');
+        if ($descricao === '' || tam($descricao) > 500) {
+            throw new InvalidArgumentException('A descrição deve ter entre 1 e 500 caracteres.');
         }
-        if ($qtd === false || $qtd < 1 || $qtd > 99) {
-            throw new InvalidArgumentException('A quantidade deve ser um número entre 1 e 99.');
+        if ($quantidade === false || $quantidade < 1 || $quantidade > 99) {
+            throw new InvalidArgumentException('A quantidade deve estar entre 1 e 99.');
         }
-        // Confere se a categoria existe, assim o erro 23000 abaixo só pode ser nome repetido
+        if ($especificacao !== '' && tam($especificacao) > 120) {
+            throw new InvalidArgumentException('A especificação pode ter até 120 caracteres.');
+        }
         $st = $this->db->prepare('SELECT 1 FROM categorias WHERE id = ?');
-        $st->execute([(int) $cat]);
-        if (!$cat || !$st->fetchColumn()) {
+        $st->execute([(int) $categoria]);
+        if (!$categoria || !$st->fetchColumn()) {
             throw new InvalidArgumentException('Escolha uma categoria válida.');
         }
-        return ['categoria_id' => $cat, 'nome' => $nome, 'descricao' => $desc, 'quantidade' => $qtd];
+        return [
+            'categoria_id' => (int) $categoria,
+            'nome' => $nome,
+            'descricao' => $descricao,
+            'quantidade' => (int) $quantidade,
+            'especificacao' => $especificacao !== '' ? $especificacao : null,
+        ];
     }
 
     private function tratarDuplicidade(PDOException $e): never
     {
         if ($e->getCode() === '23000') {
-            throw new InvalidArgumentException('Já existe um componente com este nome.');
+            throw new InvalidArgumentException('Já existe um componente com esse nome.');
         }
         throw $e;
     }

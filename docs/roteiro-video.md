@@ -1,18 +1,20 @@
-# Roteiro do vídeo (YouTube) — ~5 a 7 minutos, toda a equipe aparece
+# Roteiro atualizado para apresentar o projeto (5–7 minutos)
 
-O enunciado pede que a **equipe apresente os requisitos técnicos**. Sugestão de divisão (um integrante por bloco):
+| Tempo | O que mostrar | O que explicar |
+|---|---|---|
+| 0:00–0:45 | Protótipo físico funcionando | Objetivo do braço robótico e a relação entre automação, Arduino e movimento. |
+| 0:45–1:40 | `como-funciona.php` | Potenciômetro → leitura do Arduino → conversão em ângulo → servomotor. Mostrar base, ombro, cotovelo e garra. |
+| 1:40–2:30 | Tinkercad | Abrir o circuito fornecido e mostrar a placa, os quatro potenciômetros e os quatro servomotores. |
+| 2:30–3:30 | `database/schema.sql` e diagrama | Explicar categorias, componentes, articulações, perguntas e avaliações; destacar as chaves estrangeiras e regras de integridade. |
+| 3:30–4:40 | Site público | Navegar pelo catálogo, enviar uma pergunta sem cadastro e registrar uma avaliação anônima. |
+| 4:40–5:50 | Área administrativa | Entrar com o usuário da equipe, revisar a pergunta, escrever a resposta, publicar e editar um componente. |
+| 5:50–6:30 | API e encerramento | Abrir `/api/componentes.php`, explicar que ela só permite consulta pública e concluir. |
 
-| # | Tempo | Quem | O que mostrar |
-|---|---|---|---|
-| 1 | 0:00–0:45 | Integrante 1 | Apresentação da equipe e o **braço robótico funcionando**. Explicar o tema IoT e o objetivo do site (explicar o braço para os visitantes). |
-| 2 | 0:45–1:45 | Integrante 2 | **Banco de dados:** diagrama ER em `docs/modelo-logico.md` e `schema.sql` mostrando os **comentários**, PK/FK, `UNIQUE`, `CHECK` e `CASCADE` × `SET NULL` × `RESTRICT`. |
-| 3 | 1:45–3:00 | Integrante 3 | **Arquitetura em serviços:** pasta `src/Services`, explicar que as páginas não têm SQL e só chamam o serviço. Mostrar PDO + prepared statements e o token CSRF. |
-| 4 | 3:00–5:00 | Integrante 4 | **Site + CRUD ao vivo em 2+ entidades:** percorrer *Como funciona*; cadastrar visitante → registrar dúvida → responder (editar) → excluir; cadastrar/editar componente. Mostrar e-mail duplicado e a validação. |
-| 5 | 5:00–6:00 | Integrante 1 ou 2 | Excluir um componente e mostrar que a dúvida vira **"Geral"**; excluir um visitante e mostrar as dúvidas sumindo. Abrir `api/componentes.php` (JSON). |
-| 6 | 6:00–6:30 | Todos | **GitHub:** repositório público e README com prints. Encerramento. |
+## Preparação
 
-**Checklist antes de gravar**
-- [ ] Banco criado e `seed.sql` importado
-- [ ] Repositório do GitHub **público**
-- [ ] Prints novos em `docs/img/` e nomes/links preenchidos no README
-- [ ] Vídeo do YouTube como **Não listado** ou Público (conforme o professor pedir)
+- [ ] Banco criado e `seed.sql` importado.
+- [ ] Credenciais da equipe configuradas em `config/config.local.php`.
+- [ ] Testar cadastro de pergunta, publicação, avaliação e edição de componente.
+- [ ] Confirmar que as páginas administrativas redirecionam para login quando não autenticadas.
+- [ ] Abrir o projeto do Tinkercad e confirmar que a simulação está compartilhada.
+- [ ] Gravar a apresentação mostrando o braço real e o site, sem afirmar que o site controla o hardware.

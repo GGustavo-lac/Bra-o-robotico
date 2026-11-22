@@ -1,20 +1,34 @@
 <?php
-/**
- * Inicialização comum a todas as páginas:
- *  - autoload das classes do namespace App\ (pasta src/)
- *  - sessão (usada para mensagens flash e token CSRF)
- *  - funções auxiliares
- */
-spl_autoload_register(function (string $classe): void {
-    $prefixo = 'App\\';
-    if (strncmp($classe, $prefixo, strlen($prefixo)) !== 0) {
+/** Inicialização comum. */
+declare(strict_types=1);
+
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'App\\';
+    if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
         return;
     }
-    $arquivo = __DIR__ . '/' . str_replace('\\', '/', substr($classe, strlen($prefixo))) . '.php';
-    if (is_file($arquivo)) {
-        require $arquivo;
+    $file = __DIR__ . '/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+    if (is_file($file)) {
+        require $file;
     }
 });
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('X-Frame-Options: DENY');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+
 require __DIR__ . '/helpers.php';

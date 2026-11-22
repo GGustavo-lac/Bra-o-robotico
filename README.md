@@ -1,125 +1,102 @@
-# 🦾 Braço Robótico IoT — Site Explicativo para a Feira Tecnológica
+# Braço Robótico — documentação do protótipo
 
-Aplicação web em **PHP + MySQL** que acompanha o nosso dispositivo IoT da Feira Tecnológica: um **braço robótico com 4 servomotores controlado por Arduino**. O site **explica como o braço funciona**, apresenta o **catálogo de componentes**, **cadastra os visitantes** do estande e registra as **dúvidas** que eles fazem (com a resposta da equipe).
+Site de apresentação de um braço robótico didático com Arduino Uno, quatro controles por potenciômetro e quatro servomotores conforme o cadastro atual. O objetivo é explicar o projeto, documentar componentes, mostrar o circuito de simulação e reunir perguntas da feira.
 
-> O site é informativo: ele **não controla** o braço.
+> O site é informativo. Não envia comandos ao Arduino e não controla o braço físico.
 
-> **Equipe:** _Gustavo Lacerda, Gustavo Ferroni, Lucas Braga, Daniel Achcar_ · **Turma/Curso:** _2 DS AMS_ · **Vídeo de apresentação:** _(colar o link do YouTube)_
+## O que foi revisto
 
----
+- Direção visual editorial/industrial, sem framework, fontes remotas ou animações decorativas.
+- Página inicial organizada em objetivo, sequência de controle, eletrônica, articulações, circuito e limitações.
+- Página de funcionamento com explicação de entrada analógica, conversão e atuação; inclui referências Arduino, repositórios GitHub e vídeos YouTube consultados.
+- Catálogo ligado ao banco, em tabela pesquisável por nome, categoria e função.
+- Perguntas e avaliações anônimas com formulários mais claros.
+- Área da equipe continua separada e autenticada; a API pública continua somente para leitura.
+- Melhorias de acessibilidade: foco visível, skip link, navegação móvel sem mouse, rótulos explícitos e suporte a `prefers-reduced-motion`.
 
-## 1. O dispositivo IoT
+## Estrutura
 
-| Braço montado | Arduino + protoboard | Esquema (Tinkercad) |
-|---|---|---|
-| ![Braço](docs/img/braco-robotico.jpeg) | ![Arduino](docs/img/arduino-protoboard.jpeg) | ![Esquema](docs/img/esquema-tinkercad.jpeg) |
-
-Arduino Uno · 4 servomotores (base, ombro, cotovelo, garra) · 4 potenciômetros · protoboard · bateria 9 V com capacitor · estrutura em acrílico sobre base de madeira.
-
-## 2. O que o site faz
-
-| Página | Função | CRUD |
-|---|---|---|
-| **Como funciona** | Explica o caminho potenciômetro → Arduino → servo e as 4 articulações | conteúdo fixo |
-| **Componentes** | Catálogo das peças do braço, agrupadas por categoria | ✅ Criar · Listar · Editar · Excluir |
-| **Visitantes** | Cadastro de quem visita o estande | ✅ Criar · Listar · Editar · Excluir |
-| **Dúvidas** | Perguntas dos visitantes (sobre um componente ou gerais) e respostas da equipe | ✅ Criar · Listar · Editar · Excluir |
-
-Há também uma **API REST em JSON** do catálogo (`public/api/componentes.php`).
-
-## 3. Arquitetura baseada em serviços
-
-```
-Navegador ──► Páginas (public/*.php) ──► Serviços (src/Services/*) ──► Banco MySQL (PDO)
-                 apresentação              regras de negócio + SQL          persistência
-Cliente HTTP ──► API REST (public/api/componentes.php) ──► ComponenteService
-```
-
-```
+```text
 braco-robotico-feira/
-├── config/config.php              # dados de conexão
-├── database/schema.sql, seed.sql  # modelo físico comentado + dados de exemplo
-├── docs/                          # modelo lógico, roteiro do vídeo, fotos e prints
-├── src/
-│   ├── Database.php               # conexão PDO (Singleton)
-│   ├── helpers.php                # escape HTML, CSRF, layout
-│   └── Services/                  # ComponenteService, VisitanteService, DuvidaService
-└── public/                        # única pasta exposta ao servidor web
-    ├── index.php, como-funciona.php, componentes.php, visitantes.php, duvidas.php
-    └── api/componentes.php        # API REST JSON
+├── config/
+│   ├── config.php
+│   ├── config.local.example.php
+│   └── config.local.php
+├── database/
+│   ├── schema.sql
+│   ├── seed.sql
+│   ├── migrate_v2.sql
+│   └── instalar_banco_completo.sql
+├── docs/
+│   ├── modelo-logico.md
+│   ├── roteiro-video.md
+│   ├── pesquisa-e-referencias.md
+│   └── img/
+├── public/
+│   ├── admin/
+│   ├── api/
+│   ├── css/style.css
+│   ├── js/site.js
+│   └── *.php
+└── src/
 ```
 
-**Por que “serviços”?** Cada entidade tem uma classe de serviço que concentra **validação, regra de negócio e SQL**. As páginas só recebem o formulário e chamam o serviço — nenhum SQL aparece nas páginas, e a mesma classe atende o site **e** a API.
+## Instalação no XAMPP
 
-## 4. Banco de dados
+1. Extraia a pasta `braco-robotico-feira` em `C:\xampp\htdocs\`.
+2. Inicie Apache e MySQL no XAMPP.
+3. A configuração local incluída usa `127.0.0.1`, porta `3307`, banco `braco_robotico`, usuário `root` e senha vazia, conforme a configuração informada neste atendimento. Se seu MySQL for diferente, ajuste `config/config.local.php`.
+4. No phpMyAdmin, selecione `braco_robotico` e importe `database/instalar_banco_completo.sql`. O script cria tabelas ausentes e insere o catálogo inicial; não contém `DROP TABLE`.
+5. Acesse `http://localhost/braco-robotico-feira/public/`.
 
-Modelo lógico completo (diagrama ER, relacionamentos e normalização) em [`docs/modelo-logico.md`](docs/modelo-logico.md). Script comentado: [`database/schema.sql`](database/schema.sql).
+### Configurar o painel administrativo
 
-```
-categorias  (id PK, nome UNIQUE)
-componentes (id PK, categoria_id FK, nome UNIQUE, descricao, quantidade, criado_em, atualizado_em)
-visitantes  (id PK, nome, email UNIQUE, instituicao, criado_em)
-duvidas     (id PK, visitante_id FK, componente_id FK opcional, pergunta, resposta, criado_em)
-```
-
-| Relação | Ao excluir |
-|---|---|
-| visitante → dúvidas | `CASCADE`: as dúvidas dele são apagadas |
-| componente → dúvidas | `SET NULL`: a dúvida permanece e vira “geral” |
-| categoria → componentes | `RESTRICT`: categoria em uso não pode ser apagada |
-
-## 5. Rotas do CRUD
-
-| Operação | Página | Como acontece |
-|---|---|---|
-| **Create** | `componentes.php?acao=novo` (idem visitantes/dúvidas) | `POST acao=salvar` com `id=0` |
-| **Read** | `componentes.php` (lista) · `?acao=editar&id=N` (um registro) | `GET` |
-| **Update** | `componentes.php?acao=editar&id=N` | `POST acao=salvar` com `id=N` |
-| **Delete** | botão *Excluir* | `POST acao=excluir` |
-
-**API REST de componentes**
-
-| Método | Endpoint | Resposta |
-|---|---|---|
-| GET | `/api/componentes.php` | 200 lista |
-| GET | `/api/componentes.php?id=1` | 200 componente · 404 |
-| POST | `/api/componentes.php` (JSON) | 201 criado · 422 inválido |
-| PUT | `/api/componentes.php?id=1` (JSON) | 200 · 404 · 422 |
-| DELETE | `/api/componentes.php?id=1` | 204 · 404 |
-
-## 6. Segurança aplicada
-
-- **PDO com prepared statements** → protege contra SQL Injection
-- **`htmlspecialchars` em toda saída** (`e()`) → protege contra XSS
-- **Token CSRF** em todos os formulários que alteram dados
-- **Validação no servidor** (e-mail, tamanhos, quantidade, existência de categoria/visitante/componente) + `CHECK`/`FOREIGN KEY` no banco
-- Apenas a pasta `public/` precisa ficar acessível ao servidor web
-
-## 7. Como executar
-
-**Requisitos:** PHP 8.1+ com extensão `pdo_mysql` e MySQL/MariaDB (o XAMPP já traz tudo).
+Gere um hash no terminal:
 
 ```bash
-# 1) Baixe o projeto
-git clone <URL-DO-REPOSITORIO>
-cd braco-robotico-feira
-
-# 2) Crie o banco e (opcional) os dados de exemplo
-mysql -u root -p < database/schema.sql
-mysql -u root -p --default-character-set=utf8mb4 braco_robotico < database/seed.sql
-
-# 3) Ajuste usuário/senha em config/config.php (padrão: root, sem senha)
-
-# 4) Suba o servidor embutido do PHP
-cd public
-php -S localhost:8000
+php -r "echo password_hash('SUA_SENHA_FORTE', PASSWORD_DEFAULT), PHP_EOL;"
 ```
 
-Acesse **http://localhost:8000**.
-No XAMPP: copie a pasta para `htdocs/` e abra `http://localhost/braco-robotico-feira/public/`.
+Preencha `admin.user` e `admin.password_hash` em `config/config.local.php`. O painel fica desabilitado até existir um usuário e um hash válidos.
 
+## Atualização de uma instalação antiga
 
+1. Faça backup do banco antes de migrar.
+2. Para estrutura antiga com tabela de visitantes e perguntas vinculadas a visitantes, execute uma única vez `database/migrate_v2.sql`.
+3. Execute `database/seed.sql` para completar o catálogo.
+4. Substitua os arquivos da aplicação, mantendo sua configuração local se já tiver usuário/hash do painel definidos.
 
-## 8. Tecnologias
+## Banco de dados
 
-PHP 8 · PDO · MySQL/MariaDB · HTML5/CSS3 · Arduino (Servo) no dispositivo · Git/GitHub
+| Tabela | Uso |
+|---|---|
+| `categorias` | Grupos do catálogo técnico |
+| `componentes` | Peças, função, quantidade e especificação |
+| `articulacoes` | Base, ombro, cotovelo e garra, relacionadas aos componentes |
+| `perguntas` | Perguntas anônimas e respostas revisadas pela equipe |
+| `avaliacoes` | Nota de 1 a 5, comentário opcional e data, sem identificação |
+
+O banco alimenta conteúdo que muda durante a feira: inventário, articulações, dúvidas recebidas, respostas publicadas e avaliações. A documentação do modelo lógico está em `docs/modelo-logico.md`.
+
+## Referências e precisão
+
+Consulte `docs/pesquisa-e-referencias.md` para os documentos oficiais, repositórios GitHub e vídeos YouTube usados como comparação.
+
+Os repositórios e vídeos citados são referências externas; não representam o firmware original deste protótipo. O arquivo `.ino` do projeto e o mapeamento definitivo dos pinos não vieram no pacote. Para verificar ligações, use o circuito compartilhado no Tinkercad:
+
+https://www.tinkercad.com/things/5DKR8zgIWQp-braco?sharecode=Ym4qbowYRLuL_HKy80PfK6PDOhIyJoJqjXYvjDnkGhg
+
+**Atenção à alimentação:** a imagem de simulação contém uma bateria de 9 V, mas ela não deve ser ligada diretamente aos servos. Confirme a tensão e a corrente exigidas pelos motores; vários servos podem precisar de fonte regulada externa com GND comum ao Arduino.
+
+## Requisitos e segurança
+
+- PHP 8.1+
+- MySQL 8.0.16+ ou MariaDB 10.4+
+- Extensões PDO e PDO MySQL
+- Apache (XAMPP/Laragon)
+- Senhas protegidas por `password_hash`/`password_verify`, sessão regenerada no login, CSRF nos formulários administrativos, consultas PDO preparadas e escape de saída HTML.
+- Configure `public/` como document root em produção; `config/`, `database/`, `docs/` e `src/` devem ficar fora da raiz pública. Use HTTPS antes de publicar na internet.
+
+## Validação deste pacote
+
+Os arquivos PHP passaram por `php -l`, o JavaScript por `node --check` e as referências locais a imagens/arquivos foram verificadas. Este ambiente não dispõe de um servidor MySQL ativo nem do driver PDO MySQL, então a execução real de consultas e formulários precisa ser confirmada no XAMPP/Laragon local.
