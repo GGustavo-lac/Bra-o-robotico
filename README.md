@@ -13,14 +13,14 @@ Projeto desenvolvido para a **Feira Tecnológica**, integrando um protótipo de 
 
 ## Apresentação em vídeo
 
-**Vídeo:** [Adicionar o link do vídeo da equipe](https://drive.google.com/file/d/1PuRy4u3qnEBqX7c2bDlFUAIVCbg44fNA/view?usp=sharing)
+**Vídeo:** [link do vídeo da equipe](https://drive.google.com/file/d/1PuRy4u3qnEBqX7c2bDlFUAIVCbg44fNA/view?usp=sharing)
 
 > Após publicar o vídeo, substitua o texto acima pelo endereço público do YouTube.
 
 ## Projeto e simulação
 
 - **Tinkercad:** [Acessar o projeto do braço robótico](https://www.tinkercad.com/things/5DKR8zgIWQp-braco?sharecode=Ym4qbowYRLuL_HKy80PfK6PDOhIyJoJqjXYvjDnkGhg)
-- **Repositório:** [Adicionar o link público deste repositório](https://github.com/GGustavo-lac/Bra-o-robotico/tree/main)
+- **Repositório:** [ link público deste repositório](https://github.com/GGustavo-lac/Bra-o-robotico/tree/main)
 
 ## Capturas de tela do site
 
